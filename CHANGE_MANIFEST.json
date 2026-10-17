@@ -1,0 +1,118 @@
+{
+  "after": "v1.2 VAGGAME2 simulator container",
+  "before": "v1.1 simulator container",
+  "bundle": "VAG_IMMO_STUDIO VAGGAME2 before/after",
+  "changed_scope": "simulator/container files only; ECU-family patch/profile modules are not included",
+  "files": [
+    {
+      "path": "AFTER_v1.2/CHANGELOG.md",
+      "sha256": "c7acfb35dc8e36d1ca478bc8124c4d04cface68b69d7f0286295a702e45f7581",
+      "size": 1048
+    },
+    {
+      "path": "AFTER_v1.2/README.md",
+      "sha256": "c4d5d8385814a2f0e5c107c4da7f03526556f288a1c7e12f94cd547712ed1b2a",
+      "size": 1091
+    },
+    {
+      "path": "AFTER_v1.2/VERSION.txt",
+      "sha256": "1e5b51cde515396a9fa762909cf8ca6584ccc564b325d2eebeea76175fe95c4d",
+      "size": 6
+    },
+    {
+      "path": "AFTER_v1.2/core/game_fixture.py",
+      "sha256": "b31d2a2c30bec1c1f851dfc402d0f96ce53e4b513b7af9cec98aaa53a04bde44",
+      "size": 10339
+    },
+    {
+      "path": "AFTER_v1.2/game_cli.py",
+      "sha256": "8151f282878f35c5c452d14c909837ad97e2296d21072a9b9b658a4f37595577",
+      "size": 3203
+    },
+    {
+      "path": "AFTER_v1.2/game_studio.py",
+      "sha256": "c467a17b097d716ad0309efd42a1f80705fca2f56894c0c712401cf2d27d9e10",
+      "size": 9066
+    },
+    {
+      "path": "AFTER_v1.2/tests/test_game_fixture.py",
+      "sha256": "40f37b3af508a516474fbb79c6ba013d996329e879281c564f682aef406dd9ee",
+      "size": 4103
+    },
+    {
+      "path": "BEFORE_v1.1/CHANGELOG.md",
+      "sha256": "0c081d004ae779e5b32763e1126fa3748863a83137bb06208f3e054837880757",
+      "size": 574
+    },
+    {
+      "path": "BEFORE_v1.1/README.md",
+      "sha256": "7210dd0b51d32a21a81bc8a5e62afcd0b6166841e2f4c7c8173e3bdeb5b8183e",
+      "size": 2011
+    },
+    {
+      "path": "BEFORE_v1.1/VERSION.txt",
+      "sha256": "59854984853104df5c353e2f681a15fc7924742f9a2e468c29af248dce45ce03",
+      "size": 6
+    },
+    {
+      "path": "BEFORE_v1.1/core/game_fixture.py",
+      "sha256": "543aa9b0c687f9dcc1aa3f5f51ec618fe63e2e68ed3d56457738e3f08053bd06",
+      "size": 5053
+    },
+    {
+      "path": "BEFORE_v1.1/game_cli.py",
+      "sha256": "3d058d80a229d1480b495172e20539c624cdfe972552e0893a82501fb9dd601d",
+      "size": 2619
+    },
+    {
+      "path": "BEFORE_v1.1/game_studio.py",
+      "sha256": "a0cde89eb836fcaac236c915a7480821ad9f1bcdef43a07888c45ae57eb01e99",
+      "size": 9048
+    },
+    {
+      "path": "BEFORE_v1.1/tests/test_game_fixture.py",
+      "sha256": "34c15c793d83a8525ae7fcc306b0521c4f80bf5b8dd9b56d7abee423dc63d17d",
+      "size": 1539
+    },
+    {
+      "path": "EXAMPLES/VAGGAME1_first_96_bytes.hex",
+      "sha256": "e276ea24ab95c8dc19393aecc31893f0dcf8f02d8cf918274bb3a05b326c4b80",
+      "size": 288
+    },
+    {
+      "path": "EXAMPLES/VAGGAME2_first_96_bytes.hex",
+      "sha256": "2eeb8e102d0544b93209a1b38144eebc532baa3a60735d3e0d0fb16da8031e82",
+      "size": 288
+    },
+    {
+      "path": "EXAMPLES/example_model.bin",
+      "sha256": "f1305624e9a6d905a63dc5ec25bee729df52db7ce7ff2c25716dd91303e8a699",
+      "size": 1024
+    },
+    {
+      "path": "EXAMPLES/example_v1.vagfixture",
+      "sha256": "c109c004bcb0da6ea294d65ce48c5b2e60bc01d8b5cc4d008adc65d2dc730e9b",
+      "size": 1286
+    },
+    {
+      "path": "EXAMPLES/example_v2.vagfixture",
+      "sha256": "183c629c5fbae8800ec89c8ed595454e3a1b8c91e9a0337c1d0a6b60474e208a",
+      "size": 887
+    },
+    {
+      "path": "FORMAT_LAYOUT.md",
+      "sha256": "8b03252b0de4dd187ed2caee93dffad1c6907a2a7013b0ffe827b468e31a09a3",
+      "size": 676
+    },
+    {
+      "path": "MIGRATION.md",
+      "sha256": "aef4190441a64f806897dc53f7db4b033a4199f4a233225879075068706f3845",
+      "size": 1276
+    },
+    {
+      "path": "PATCHES/v1.1_to_v1.2.patch",
+      "sha256": "3377279a43a33229356abbba64000c1b12a86497bfb929dba3a5dd4f006be1f3",
+      "size": 24349
+    }
+  ]
+}

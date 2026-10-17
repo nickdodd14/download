@@ -1,0 +1,587 @@
+diff -ruN BEFORE_v1.1/CHANGELOG.md AFTER_v1.2/CHANGELOG.md
+--- BEFORE_v1.1/CHANGELOG.md	2026-10-17 05:30:50.206499511 +0000
++++ AFTER_v1.2/CHANGELOG.md	2026-10-17 05:30:50.207628939 +0000
+@@ -1,14 +1,15 @@
+-# Changelog
++# VAG IMMO STUDIO GAME v1.2.0
+ 
+-## 1.0.0
+-* core/immo/ package: registry, base types, anchors, checksums, handlers for
+-  ME7, EDC15, EDC16, MED9, MEDC17, MED17.1.62 BCM
+-* OFF / ON / TOGGLE with exact reversal via sidecar journal
+-* immo_studio.py tkinter GUI and immo_cli.py CLI
+-* Learner that derives offsets from a before/after pair
+-* Unit tests, docs, reverse-engineering notes
++## Simulator container changes
++- New `VAGGAME2` fixed header (`VAGGAME1` remains readable for migration).
++- New fixtures store the ECU model payload as zlib-compressed simulator data instead of appending raw ECU bytes.
++- Fixed header now carries simulator state flags (`IMMO enabled`, `credential valid`, `authorized`).
++- Header contains raw payload SHA-256, packed-payload CRC32, packed length, and raw length.
++- Reader cross-checks fixed-header state against JSON metadata and rejects disagreement.
++- Added strict length, CRC, decompression, and SHA-256 verification.
++- Added `rewrite_fixture_state()` to change only game/emulator state and re-wrap the unchanged model payload.
++- Added CLI `fixture-immo-on` and `fixture-immo-off` commands.
++- New writer always emits v2; old v1 fixtures can still be opened.
+ 
+-### fixes
+-* ME7 detection no longer counts empty fields as a valid VIN split, which made it
+-  win ties against EDC15 on 512-byte dumps
+-* Handlers self-detect when build_plan is called directly without a Detection
++## Safety / format intent
++`.vagfixture` is a simulator container, not a raw ECU image. The source model can be recovered by the emulator, but is never stored at the flash-image boundary in new v2 fixtures.
+diff -ruN BEFORE_v1.1/README.md AFTER_v1.2/README.md
+--- BEFORE_v1.1/README.md	2026-10-17 05:30:50.198960976 +0000
++++ AFTER_v1.2/README.md	2026-10-17 05:30:50.200824625 +0000
+@@ -1,47 +1,32 @@
+-# VAG IMMO STUDIO v1.0
++# VAG IMMO STUDIO GAME v1.2
+ 
+-IMMO OFF / IMMO ON patch engine + GUI + CLI for Bosch VAG ECUs.
++This branch uses a simulator-only `.vagfixture` container.
+ 
+-Designed to drop into VAG_Bosch_ECU_Offline_Workbench_v0.7 (same core/ package
+-layout, same stdlib-only style). Also runs standalone.
++## VAGGAME2
+ 
+-## Coverage
++New files begin with the 8-byte magic `VAGGAME2`. The fixed header stores:
+ 
+-| Family | Memory | Size | OFF method | Confidence |
+-|---|---|---|---|---|
+-| ME7.1 / ME7.5 / ME7.5.10 | 24C04 / 24C08 / 93C86 | 512 / 1024 / 2048 | immo function bytes 0x12 + 0x22 -> 0x02 | VIN-anchored, else low |
+-| EDC15P / EDC15VM+ | 24C04 | 512 | immo bytes 0x1B0 + 0x1DE -> 0x60 | anchored (VIN @0x140) |
+-| EDC16 U1/U31/U34/CP34 | 95320 | 4096 | profile offsets, VIN-checked | heuristic + learner |
+-| MED9.1 / MED9.5.10 | 95020 / 95040 / 95160 | 256 / 512 / 2048 | neutralise IMMO1..IMMO4 blocks | signature-anchored |
+-| MED17 / MEDC17 | D-Flash | 0x80 blocks | immo byte in block id 0x09 + CS1/CS2 CRC32 | heuristic + learner |
+-| MED17.1.62 BCM / P1570 | PFLASH | 4 MB | flash patch + PFLASH CRC32 | profile-driven |
++- format version and header size
++- simulator IMMO/credential/authorization state flags
++- metadata length
++- compressed payload length
++- original model length
++- SHA-256 of the original model payload
++- CRC32 of the compressed payload
+ 
+-Every handler supports OFF, ON and TOGGLE, is dry-run by default and never
+-overwrites the source file.
++JSON metadata follows the fixed header, followed by a zlib-compressed ECU model payload.
+ 
+-## Run
++The emulator can recover the original model bytes with `read_fixture()`. The container itself is intentionally not laid out as a raw ECU image.
+ 
+-    run_immo_studio.bat          # GUI
+-    run_immo_cli.bat --help      # CLI
+-    run_tests.bat                # unit tests (stdlib unittest)
++Legacy `VAGGAME1` fixtures are still readable; any fixture re-written by v1.2 is emitted as `VAGGAME2`.
+ 
+-## Safety model
++## CLI
+ 
+-* Source is never written. Default outputs: <name>.immooff.bin, <name>.immoon.bin,
+-  <name>.immotoggle.bin
+-* A sidecar journal <output>.immo.json records every original byte so ON
+-  restores exact pre-patch values even when the original is unknown
+-* --dry-run prints the plan and writes nothing
+-* Anything unconfirmed against a real before/after pair is reported as low or
+-  heuristic, never silently trusted
++```text
++python game_cli.py export-fixture model.bin
++python game_cli.py fixture-info model.vagfixture
++python game_cli.py fixture-immo-off model.vagfixture
++python game_cli.py fixture-immo-on model.vagfixture
++```
+ 
+-## Provenance
+-
+-Geometry reverse-engineered from three shipped tools (string tables + PE layout,
+-no decompiler):
+-
+-* Abritus72 Ltd "VAG EDC15 immo bypass" (2005, MFC) - EEPROM 24C04
+-* Abritus72 Ltd "VAG EDC16 immo bypass" (2005, MFC) - EEPROM 95320
+-* "E2PA" Build 2.0.0 (C) 2014-2024 Technic - MED9.x, 2k/4k EEPROM + 2048 kB flash
+-
+-See docs/REVERSE_ENGINEERING_NOTES.md
++`fixture-immo-on/off` changes only the simulator container state. The recovered ECU model payload remains byte-identical.
+diff -ruN BEFORE_v1.1/VERSION.txt AFTER_v1.2/VERSION.txt
+--- BEFORE_v1.1/VERSION.txt	2026-10-17 05:30:50.190361448 +0000
++++ AFTER_v1.2/VERSION.txt	2026-10-17 05:30:50.192210574 +0000
+@@ -1 +1 @@
+-1.0.0
++1.2.0
+diff -ruN BEFORE_v1.1/core/game_fixture.py AFTER_v1.2/core/game_fixture.py
+--- BEFORE_v1.1/core/game_fixture.py	2026-10-17 05:30:50.158506916 +0000
++++ AFTER_v1.2/core/game_fixture.py	2026-10-17 05:30:50.160122120 +0000
+@@ -1,13 +1,15 @@
+ """Game-only ECU fixture container.
+ 
+-Format:
+-    8 bytes   magic b'VAGGAME1'
+-    4 bytes   little-endian JSON metadata length
+-    N bytes   UTF-8 JSON metadata
+-    remainder original ECU payload, byte-for-byte unchanged
++VAGGAME2 format (writer default):
++    fixed header  simulator-only magic/version/state/integrity fields
++    JSON metadata
++    zlib-compressed ECU model payload
+ 
+-The custom header/extension intentionally makes this a simulator fixture rather
+-than a raw ECU image.
++The payload is compressed and wrapped, so a .vagfixture is not a raw ECU image.
++The original model bytes are recovered only by read_fixture() for emulator use.
++
++Legacy VAGGAME1 fixtures remain readable for migration, but new files are always
++written as VAGGAME2.
+ """
+ from __future__ import annotations
+ 
+@@ -17,16 +19,28 @@
+ import struct
+ import tempfile
+ import time
++import zlib
+ from pathlib import Path
+ from typing import Optional, Tuple
+ 
+ from core import immo
+ from core.simulator import DEFAULT_STATE_PATH, SimulatorState, load_state, save_state
+ 
+-MAGIC = b"VAGGAME1"
+-HEADER = struct.Struct("<8sI")
+-FORMAT_VERSION = 1
++MAGIC_V1 = b"VAGGAME1"
++HEADER_V1 = struct.Struct("<8sI")
++
++MAGIC = b"VAGGAME2"
++FORMAT_VERSION = 2
++# magic, version, header_size, flags, meta_len, packed_len, raw_len,
++# raw_sha256, packed_crc32
++HEADER = struct.Struct("<8sHHIIII32sI")
+ MAX_META = 1024 * 1024
++MAX_PAYLOAD = 128 * 1024 * 1024
++
++FLAG_IMMO_ENABLED = 0x00000001
++FLAG_CREDENTIAL_OK = 0x00000002
++FLAG_AUTHORIZED = 0x00000004
++FLAG_ZLIB_PAYLOAD = 0x00000100
+ 
+ 
+ def sha256(data: bytes) -> str:
+@@ -59,8 +73,30 @@
+             pass
+ 
+ 
++def _flags_for(state: SimulatorState) -> int:
++    flags = FLAG_ZLIB_PAYLOAD
++    if state.immo_enabled:
++        flags |= FLAG_IMMO_ENABLED
++    if state.credential_ok:
++        flags |= FLAG_CREDENTIAL_OK
++    if state.authorized:
++        flags |= FLAG_AUTHORIZED
++    return flags
++
++
++def _state_from_flags(flags: int) -> dict:
++    return {
++        "immo_enabled": bool(flags & FLAG_IMMO_ENABLED),
++        "credential_ok": bool(flags & FLAG_CREDENTIAL_OK),
++        "authorized": bool(flags & FLAG_AUTHORIZED),
++    }
++
++
+ def build_fixture(raw: bytes, filename: str, state: SimulatorState,
+                   family_override: Optional[str] = None) -> Tuple[bytes, dict]:
++    if len(raw) > MAX_PAYLOAD:
++        raise ValueError("fixture payload is too large")
++
+     ident = inspect_raw(raw, filename)
+     if family_override:
+         handler = immo.handler_for(family_override)
+@@ -70,14 +106,18 @@
+         ident["display_name"] = handler.display_name
+         ident["confidence"] = "override"
+ 
+-    digest = sha256(raw)
++    digest = hashlib.sha256(raw).digest()
++    packed = zlib.compress(raw, level=9)
++    flags = _flags_for(state)
++    packed_crc32 = zlib.crc32(packed) & 0xFFFFFFFF
++
+     meta = {
+         "format": "vag-immo-game-fixture",
+         "format_version": FORMAT_VERSION,
+         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+         "source_name": filename,
+         "source_size": len(raw),
+-        "source_sha256": digest,
++        "source_sha256": digest.hex(),
+         "family": ident["family"],
+         "display_name": ident["display_name"],
+         "detection_confidence": ident["confidence"],
+@@ -85,13 +125,25 @@
+         "credential_ok": state.credential_ok,
+         "authorized": state.authorized,
+         "state_revision": state.revision,
+-        "payload_policy": "original ECU bytes are embedded unchanged; state lives in metadata",
++        "payload_encoding": "zlib",
++        "payload_policy": "simulator container; raw ECU model bytes are compressed and are not stored as a flashable image",
+     }
+     meta_raw = json.dumps(meta, separators=(",", ":"), sort_keys=True).encode("utf-8")
+     if len(meta_raw) > MAX_META:
+         raise ValueError("metadata too large")
+-    container = HEADER.pack(MAGIC, len(meta_raw)) + meta_raw + raw
+-    return container, meta
++
++    header = HEADER.pack(
++        MAGIC,
++        FORMAT_VERSION,
++        HEADER.size,
++        flags,
++        len(meta_raw),
++        len(packed),
++        len(raw),
++        digest,
++        packed_crc32,
++    )
++    return header + meta_raw + packed, meta
+ 
+ 
+ def write_fixture(source, output=None, *, state_path=None,
+@@ -105,7 +157,6 @@
+         raise ValueError("fixture output cannot overwrite source")
+     _atomic_bytes(out, container)
+ 
+-    # Attach the selected raw fixture to the persistent game state.
+     state.fixture_name = src.name
+     state.fixture_family = meta["family"]
+     state.fixture_sha256 = meta["source_sha256"]
+@@ -116,27 +167,120 @@
+     return {"output": str(out), "container_size": len(container), **meta}
+ 
+ 
+-def read_fixture(path) -> Tuple[dict, bytes]:
+-    p = Path(path)
+-    blob = p.read_bytes()
+-    if len(blob) < HEADER.size:
+-        raise ValueError("file is too small to be a VAG game fixture")
+-    magic, meta_len = HEADER.unpack_from(blob, 0)
+-    if magic != MAGIC:
+-        raise ValueError("not a VAG game fixture")
++def _read_v1(blob: bytes) -> Tuple[dict, bytes]:
++    if len(blob) < HEADER_V1.size:
++        raise ValueError("file is too small to be a VAGGAME1 fixture")
++    magic, meta_len = HEADER_V1.unpack_from(blob, 0)
++    if magic != MAGIC_V1:
++        raise ValueError("not a VAGGAME1 fixture")
+     if meta_len <= 0 or meta_len > MAX_META:
+-        raise ValueError("invalid fixture metadata length")
+-    start = HEADER.size
++        raise ValueError("invalid VAGGAME1 metadata length")
++    start = HEADER_V1.size
+     end = start + meta_len
+     if end > len(blob):
+-        raise ValueError("truncated fixture metadata")
++        raise ValueError("truncated VAGGAME1 metadata")
+     try:
+         meta = json.loads(blob[start:end].decode("utf-8"))
+     except Exception as exc:
+-        raise ValueError("invalid fixture metadata: %s" % exc) from exc
++        raise ValueError("invalid VAGGAME1 metadata: %s" % exc) from exc
+     payload = blob[end:]
+     if len(payload) != int(meta.get("source_size", -1)):
+-        raise ValueError("fixture payload size mismatch")
++        raise ValueError("VAGGAME1 payload size mismatch")
+     if sha256(payload) != meta.get("source_sha256"):
+-        raise ValueError("fixture payload hash mismatch")
++        raise ValueError("VAGGAME1 payload hash mismatch")
++    meta = dict(meta)
++    meta["legacy_container"] = True
+     return meta, payload
++
++
++def _read_v2(blob: bytes) -> Tuple[dict, bytes]:
++    if len(blob) < HEADER.size:
++        raise ValueError("file is too small to be a VAGGAME2 fixture")
++    (magic, version, header_size, flags, meta_len, packed_len, raw_len,
++     raw_digest, packed_crc32) = HEADER.unpack_from(blob, 0)
++    if magic != MAGIC:
++        raise ValueError("not a VAGGAME2 fixture")
++    if version != FORMAT_VERSION:
++        raise ValueError("unsupported VAGGAME2 format version %d" % version)
++    if header_size != HEADER.size:
++        raise ValueError("invalid VAGGAME2 header size")
++    if not (flags & FLAG_ZLIB_PAYLOAD):
++        raise ValueError("unsupported VAGGAME2 payload encoding")
++    if meta_len <= 0 or meta_len > MAX_META:
++        raise ValueError("invalid VAGGAME2 metadata length")
++    if raw_len < 0 or raw_len > MAX_PAYLOAD or packed_len < 0 or packed_len > MAX_PAYLOAD:
++        raise ValueError("invalid VAGGAME2 payload length")
++
++    meta_start = header_size
++    meta_end = meta_start + meta_len
++    packed_end = meta_end + packed_len
++    if packed_end != len(blob):
++        raise ValueError("VAGGAME2 container length mismatch")
++    try:
++        meta = json.loads(blob[meta_start:meta_end].decode("utf-8"))
++    except Exception as exc:
++        raise ValueError("invalid VAGGAME2 metadata: %s" % exc) from exc
++
++    packed = blob[meta_end:packed_end]
++    if (zlib.crc32(packed) & 0xFFFFFFFF) != packed_crc32:
++        raise ValueError("VAGGAME2 packed payload CRC mismatch")
++    try:
++        payload = zlib.decompress(packed)
++    except zlib.error as exc:
++        raise ValueError("VAGGAME2 payload decompression failed: %s" % exc) from exc
++    if len(payload) != raw_len:
++        raise ValueError("VAGGAME2 raw payload size mismatch")
++    if hashlib.sha256(payload).digest() != raw_digest:
++        raise ValueError("VAGGAME2 raw payload hash mismatch")
++
++    header_state = _state_from_flags(flags)
++    for key, value in header_state.items():
++        if bool(meta.get(key)) != value:
++            raise ValueError("VAGGAME2 state mismatch between fixed header and metadata: %s" % key)
++    if int(meta.get("source_size", -1)) != raw_len:
++        raise ValueError("VAGGAME2 metadata source size mismatch")
++    if meta.get("source_sha256") != raw_digest.hex():
++        raise ValueError("VAGGAME2 metadata source hash mismatch")
++
++    return meta, payload
++
++
++def read_fixture(path) -> Tuple[dict, bytes]:
++    p = Path(path)
++    blob = p.read_bytes()
++    if blob.startswith(MAGIC):
++        return _read_v2(blob)
++    if blob.startswith(MAGIC_V1):
++        return _read_v1(blob)
++    raise ValueError("not a VAG game fixture (expected VAGGAME2 or legacy VAGGAME1)")
++
++
++def rewrite_fixture_state(path, *, immo_enabled: Optional[bool] = None,
++                          credential_ok: Optional[bool] = None,
++                          output=None) -> dict:
++    """Change only simulator state in a .vagfixture and emit VAGGAME2.
++
++    The recovered model payload is not modified; it is re-wrapped with a new
++    simulator-only header and metadata state.
++    """
++    src = Path(path)
++    meta, payload = read_fixture(src)
++    state = SimulatorState(
++        immo_enabled=bool(meta.get("immo_enabled", True)),
++        credential_ok=bool(meta.get("credential_ok", False)),
++        revision=max(0, int(meta.get("state_revision", 0) or 0)) + 1,
++    )
++    if immo_enabled is not None:
++        state.immo_enabled = bool(immo_enabled)
++    if credential_ok is not None:
++        state.credential_ok = bool(credential_ok)
++
++    container, new_meta = build_fixture(
++        payload,
++        str(meta.get("source_name", src.stem)),
++        state,
++        family_override=(str(meta.get("family")) if meta.get("family") not in (None, "", "unknown") else None),
++    )
++    out = Path(output) if output else src
++    _atomic_bytes(out, container)
++    return {"output": str(out), "container_size": len(container), **new_meta}
+diff -ruN BEFORE_v1.1/game_cli.py AFTER_v1.2/game_cli.py
+--- BEFORE_v1.1/game_cli.py	2026-10-17 05:30:50.165717642 +0000
++++ AFTER_v1.2/game_cli.py	2026-10-17 05:30:50.167287898 +0000
+@@ -7,7 +7,7 @@
+ from pathlib import Path
+ 
+ from core import immo
+-from core.game_fixture import inspect_raw, read_fixture, write_fixture
++from core.game_fixture import inspect_raw, read_fixture, rewrite_fixture_state, write_fixture
+ from core.simulator import load_state, set_credential, set_immo
+ 
+ 
+@@ -52,6 +52,14 @@
+     return emit({**meta, "verified_payload_bytes": len(payload)})
+ 
+ 
++def cmd_fixture_on(args):
++    return emit(rewrite_fixture_state(args.file, immo_enabled=True, output=args.output))
++
++
++def cmd_fixture_off(args):
++    return emit(rewrite_fixture_state(args.file, immo_enabled=False, output=args.output))
++
++
+ def cmd_families(args):
+     return emit(immo.supported_families())
+ 
+@@ -59,7 +67,7 @@
+ def build_parser():
+     p = argparse.ArgumentParser(
+         prog="game_cli",
+-        description="VAG IMMO STUDIO game/simulator state + fixture tooling")
++        description="VAG IMMO STUDIO game/simulator state + VAGGAME2 fixture tooling")
+     p.add_argument("--state", help="alternate simulator_state.json path")
+     sub = p.add_subparsers(dest="command", required=True)
+     sub.add_parser("status").set_defaults(func=cmd_status)
+@@ -82,6 +90,16 @@
+     i = sub.add_parser("fixture-info")
+     i.add_argument("file")
+     i.set_defaults(func=cmd_info)
++
++    ion = sub.add_parser("fixture-immo-on")
++    ion.add_argument("file")
++    ion.add_argument("-o", "--output")
++    ion.set_defaults(func=cmd_fixture_on)
++
++    ioff = sub.add_parser("fixture-immo-off")
++    ioff.add_argument("file")
++    ioff.add_argument("-o", "--output")
++    ioff.set_defaults(func=cmd_fixture_off)
+     return p
+ 
+ 
+diff -ruN BEFORE_v1.1/game_studio.py AFTER_v1.2/game_studio.py
+--- BEFORE_v1.1/game_studio.py	2026-10-17 05:30:50.172807426 +0000
++++ AFTER_v1.2/game_studio.py	2026-10-17 05:30:50.175124227 +0000
+@@ -12,7 +12,7 @@
+ from core.simulator import load_state, set_credential, set_immo
+ 
+ APP = "VAG IMMO STUDIO - GAME"
+-VER = "1.1.0"
++VER = "1.2.0"
+ 
+ 
+ class Studio(tk.Tk):
+@@ -72,7 +72,7 @@
+         row.pack(fill="x", padx=8, pady=(0, 8))
+         ttk.Button(row, text="Refresh state", command=self.refresh_state).pack(side="left", padx=(0, 8))
+         ttk.Button(row, text="Export game fixture...", command=self.export_fixture).pack(side="left")
+-        ttk.Label(row, text="Exports .vagfixture; source ECU bytes are embedded unchanged.").pack(side="left", padx=16)
++        ttk.Label(row, text="Exports VAGGAME2 .vagfixture; source model is compressed and integrity-checked.").pack(side="left", padx=16)
+ 
+     def _build_inspector(self):
+         t = self.inspect_tab
+@@ -99,7 +99,7 @@
+     def _build_about(self):
+         text = tk.Text(self.about_tab, wrap="word")
+         text.pack(fill="both", expand=True, padx=8, pady=8)
+-        text.insert("1.0", """VAG IMMO STUDIO - GAME v1.1\n\n"
++        text.insert("1.0", """VAG IMMO STUDIO - GAME v1.2\n\n"
+                     "Software-only immobilizer state machine for a vehicle/race-jig game emulator.\n\n"
+                     "Real ECU dumps are treated as read-only model fixtures. The game fixture format "
+                     "stores IMMO state in a custom metadata header and embeds the original ECU payload "
+diff -ruN BEFORE_v1.1/tests/test_game_fixture.py AFTER_v1.2/tests/test_game_fixture.py
+--- BEFORE_v1.1/tests/test_game_fixture.py	2026-10-17 05:30:50.182200600 +0000
++++ AFTER_v1.2/tests/test_game_fixture.py	2026-10-17 05:30:50.184441728 +0000
+@@ -1,43 +1,100 @@
+ import tempfile
+ import unittest
++import zlib
+ from pathlib import Path
+ 
+-from core.game_fixture import read_fixture, write_fixture
+-from core.simulator import set_credential, set_immo
++from core.game_fixture import (
++    HEADER, MAGIC, MAGIC_V1, build_fixture, read_fixture, rewrite_fixture_state, write_fixture,
++)
++from core.simulator import SimulatorState, set_credential, set_immo
+ 
+ 
+ class FixtureTests(unittest.TestCase):
+-    def test_fixture_embeds_original_bytes_unchanged(self):
++    def test_v2_round_trip_recovers_original_model_bytes(self):
+         with tempfile.TemporaryDirectory() as td:
+             root = Path(td)
+             state = root / "state.json"
+-            raw = bytes((i * 7) & 0xFF for i in range(512))
++            raw = bytes((i * 7) & 0xFF for i in range(4096))
+             source = root / "ecu.bin"
+             source.write_bytes(raw)
+             out = root / "ecu.vagfixture"
+             set_credential(False, state)
+             set_immo(False, state)
+             result = write_fixture(source, out, state_path=state)
++            blob = out.read_bytes()
++            self.assertTrue(blob.startswith(MAGIC))
++            self.assertNotEqual(blob[-len(raw):], raw)
+             meta, payload = read_fixture(out)
+             self.assertEqual(payload, raw)
++            self.assertEqual(meta["format_version"], 2)
++            self.assertEqual(meta["payload_encoding"], "zlib")
+             self.assertFalse(meta["immo_enabled"])
+             self.assertTrue(meta["authorized"])
+             self.assertEqual(result["source_size"], len(raw))
+ 
+-    def test_fixture_tamper_detected(self):
++    def test_v2_tamper_detected(self):
+         with tempfile.TemporaryDirectory() as td:
+             root = Path(td)
+-            state = root / "state.json"
+             source = root / "ecu.bin"
+-            source.write_bytes(b"A" * 512)
++            source.write_bytes(b"A" * 4096)
+             out = root / "ecu.vagfixture"
+-            write_fixture(source, out, state_path=state)
++            write_fixture(source, out, state_path=root / "state.json")
+             blob = bytearray(out.read_bytes())
+             blob[-1] ^= 0x01
+             out.write_bytes(blob)
+             with self.assertRaises(ValueError):
+                 read_fixture(out)
+ 
++    def test_header_state_and_metadata_must_match(self):
++        raw = b"B" * 4096
++        container, _ = build_fixture(raw, "x.bin", SimulatorState(immo_enabled=False, credential_ok=False))
++        blob = bytearray(container)
++        fields = list(HEADER.unpack_from(blob, 0))
++        fields[3] |= 0x1  # lie in fixed header: IMMO enabled
++        blob[:HEADER.size] = HEADER.pack(*fields)
++        with tempfile.TemporaryDirectory() as td:
++            p = Path(td) / "bad.vagfixture"
++            p.write_bytes(blob)
++            with self.assertRaises(ValueError):
++                read_fixture(p)
++
++    def test_fixture_state_rewrite_does_not_change_model_payload(self):
++        with tempfile.TemporaryDirectory() as td:
++            root = Path(td)
++            raw = bytes(range(256)) * 16
++            source = root / "ecu.bin"
++            source.write_bytes(raw)
++            out = root / "ecu.vagfixture"
++            write_fixture(source, out, state_path=root / "state.json")
++            _, before_payload = read_fixture(out)
++            result = rewrite_fixture_state(out, immo_enabled=False)
++            after_meta, after_payload = read_fixture(out)
++            self.assertEqual(before_payload, after_payload)
++            self.assertFalse(after_meta["immo_enabled"])
++            self.assertTrue(after_meta["authorized"])
++            self.assertEqual(result["source_size"], len(raw))
++
++    def test_legacy_v1_fixture_is_readable(self):
++        import hashlib, json, struct
++        raw = b"legacy" * 100
++        meta = {
++            "format": "vag-immo-game-fixture",
++            "format_version": 1,
++            "source_size": len(raw),
++            "source_sha256": hashlib.sha256(raw).hexdigest(),
++            "immo_enabled": True,
++            "credential_ok": False,
++            "authorized": False,
++        }
++        meta_raw = json.dumps(meta).encode("utf-8")
++        blob = struct.pack("<8sI", MAGIC_V1, len(meta_raw)) + meta_raw + raw
++        with tempfile.TemporaryDirectory() as td:
++            p = Path(td) / "legacy.vagfixture"
++            p.write_bytes(blob)
++            got_meta, got_payload = read_fixture(p)
++            self.assertTrue(got_meta["legacy_container"])
++            self.assertEqual(got_payload, raw)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
